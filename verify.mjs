@@ -1,0 +1,22 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {survey,parseSurvey,example,hydraulics,telemetry,defaults,pipe,rad} from './dist/engine.mjs';
+let passed=0;const near=(a,b,t=1e-8)=>{assert.ok(Math.abs(a-b)<=t*Math.max(1,Math.abs(b)),`${a} != ${b}`);passed++;};const rejects=f=>{assert.throws(f);passed++;};
+let r=survey([{md:0,inc:0,azi:0},{md:1000,inc:0,azi:230}]).at(-1);near(r.tvd,1000);near(r.n,0);near(r.e,0);near(r.dls,0);near(r.rf,1);
+r=survey([{md:0,inc:60,azi:90},{md:100,inc:60,azi:90}]).at(-1);near(r.tvd,50);near(r.e,50*Math.sqrt(3));near(r.n,0);near(r.dls,0);
+r=survey([{md:0,inc:0,azi:0},{md:100,inc:90,azi:0}]).at(-1);near(r.tvd,200/Math.PI);near(r.n,200/Math.PI);near(r.dls,27);
+r=survey([{md:0,inc:90,azi:359},{md:30,inc:90,azi:1}]).at(-1);near(r.beta,2);near(r.dls,2);near(r.e,0);near(r.n,30*Math.sin(rad)/rad);
+let m=survey(example()),ft=survey(example().map(x=>({...x,md:x.md/.3048})),'ft');near(ft.at(-1).tvd*.3048,m.at(-1).tvd);near(ft.at(-1).n*.3048,m.at(-1).n);near(ft[6].dls,m[6].dls*30.48/30);
+r=survey([{md:500,inc:0,azi:0},{md:600,inc:0,azi:0}],'m',{tvd:450,n:10,e:20}).at(-1);near(r.tvd,550);near(r.n,10);near(r.e,20);
+rejects(()=>survey([{md:0,inc:0,azi:0},{md:0,inc:0,azi:0}]));rejects(()=>survey([{md:0,inc:0,azi:0},{md:100,inc:180,azi:0}]));rejects(()=>parseSurvey('0,0,0\n100,20'));rejects(()=>survey([{md:0,inc:0,azi:0},{md:100,inc:0,azi:360}]));rejects(()=>survey([{md:0,inc:0,azi:0},{md:NaN,inc:0,azi:0}]));
+let small=survey([{md:0,inc:20,azi:10},{md:1,inc:20.00000001,azi:10}]).at(-1);near(small.rf,1);near(small.tvd,Math.cos(20*rad),1e-7);
+let h=hydraulics(defaults),h2=hydraulics({...defaults,q:defaults.q*2});near(h2.bit/h.bit,4);near(h2.open/h.open,4);near(h2.pulse/h.pulse,4);
+let hd=hydraulics({...defaults,rho:defaults.rho*1.2});near(hd.bit/h.bit,1.2);
+let hn=hydraulics({...defaults,nozzles:[24,24,24]});near(hn.bit/h.bit,1/16);near(h.total,h.dp.dp+h.bha.dp+h.bit+h.open);near(h.restricted-h.total,h.pulse);
+let p=pipe(.0001,1000,100,.1,.03,1),v=.0001/(Math.PI*.1**2/4);near(p.dp,32*.03*100*v/.1**2);near(p.re,1000*v*.1/.03);
+let pl=pipe(.0001,1000,100,.1,.25,.65),gamma=8*pl.v/.1*(3*.65+1)/(4*.65);near(pl.dp,4*.25*gamma**.65*100/.1);
+let t=telemetry(defaults,h);near(t.c,Math.sqrt(2.2e9/1200));near(t.gain,10**(-t.loss/20));near(telemetry({...defaults,alpha:0,gasPenalty:0},h).surface,h.pulse);assert.ok(telemetry({...defaults,gas:1},h).c<t.c);passed++;assert.ok(telemetry({...defaults,gas:1},h).surface<t.surface);passed++;
+rejects(()=>hydraulics({...defaults,closed:defaults.open}));rejects(()=>hydraulics({...defaults,q:0}));rejects(()=>hydraulics({...defaults,bhaL:defaults.L}));
+for(let n of [.4,.65,1]){let pp=pipe(.03,1200,2000,.1,.1,n),f=pp.fd/4;if(pp.re>=4000)near(1/Math.sqrt(f),4/n**.75*Math.log10(pp.re*f**(1-n/2))-.4/n**1.2);}
+fs.writeFileSync('dist/verification.json',JSON.stringify({passed,coverage:'vertical, inclined, circular build, azimuth wrap, tie-in, SI/field units, invalid inputs, nozzle scaling, laminar analytical solutions, friction residual and acoustic limits'}));
+console.log(JSON.stringify({passed,example:{tvd:m.at(-1).tvd,north:m.at(-1).n,east:m.at(-1).e,maxDls:Math.max(...m.map(r=>r.dls))},hydraulics:h.total,telemetry:t}));
