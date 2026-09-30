@@ -31,6 +31,7 @@ The Method & Interview tab explains formulas, assumptions, references and a five
 
 ```bash
 node verify.mjs
+node verify-advanced.mjs
 python -m unittest discover -s tests
 ```
 
@@ -58,3 +59,11 @@ The Excel workbook was checked against the engine and tested for invalid input a
 - SLB mud pulse telemetry glossary: https://glossary.slb.com/terms/m/mud_pulse_telemetry
 - Aerated drilling telemetry study: https://www.sciencedirect.com/science/article/pii/S1876380412600391
 - Continuous-wave telemetry research: https://www.nature.com/articles/s41598-025-08806-5
+
+## Advanced exploration
+
+- **Interactive 3D:** Select 3D, drag to orbit, or use azimuth/elevation and zoom sliders. Keyboard: focus the plot, use arrow keys to rotate and +/− to zoom. Reset restores the camera. The orthographic view uses equal world scale and station chords, not a smoothed reconstructed borehole.
+- **Trajectory baseline:** Save the calculated survey, then edit inputs or load another profile. 3D overlays the saved path with a dashed orange line and reports current-minus-baseline endpoint coordinates, converting units when necessary. The baseline exists only during the current page session. This is not an anti-collision calculation.
+- **Sensitivity explorer:** Sweep flow, gas fraction, frequency or fluid-path length with all other current inputs held fixed. Separate pressure and signal plots avoid mixing units. Export the sweep and base input values to CSV. Length sweeps exclude invalid lengths shorter than the BHA. Telemetry results remain hypothetical.
+
+`verify-advanced.mjs` checks camera distance preservation and axis conventions, degenerate trajectory rendering, sensitivity scaling, gas trends and rejected sweep ranges. Browser interaction verification requires a local browser; it is separate from numerical verification.
